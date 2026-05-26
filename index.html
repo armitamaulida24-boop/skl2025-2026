@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pengumuman Kelulusan TP 2025/2026 - SMP Negeri 1 Karimun</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Animasi loading sederhana */
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4 font-sans">
+
+    <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <img src="https://i.ibb.co.com/W4sbt0Sh/Screenshot-2024-08-29-125749.png" alt="Logo SMP Negeri 1 Karimun" class="w-24 h-auto mx-auto mb-4 drop-shadow-sm">
+            <h1 class="text-2xl font-bold text-gray-800 mb-1">Pengumuman Kelulusan</h1>
+            <h2 class="text-xl font-bold text-blue-700 mb-1">SMP Negeri 1 Karimun</h2>
+            <p class="text-sm font-semibold text-gray-500 mb-3">Tahun Pelajaran 2025/2026</p>
+            <p class="text-gray-600 text-sm">Silakan masukkan NISN Anda untuk melihat hasil kelulusan.</p>
+        </div>
+
+        <!-- Form Pencarian -->
+        <div class="space-y-4">
+            <div>
+                <label for="nisn" class="block text-sm font-medium text-gray-700 mb-1">Nomor Induk Siswa Nasional (NISN)</label>
+                <input type="text" id="nisn" placeholder="Contoh: 1234567890" 
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+            </div>
+            
+            <button onclick="cekKelulusan()" id="btnCari"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex justify-center items-center">
+                <span id="btnText">Cek Hasil</span>
+                <div id="loadingIcon" class="hidden loader ease-linear rounded-full border-2 border-t-2 border-gray-200 h-5 w-5 ml-2"></div>
+            </button>
+        </div>
+
+        <!-- Area Hasil -->
+        <div id="resultArea" class="mt-8 hidden">
+            <div class="border-t pt-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 text-center">Hasil Pencarian</h2>
+                
+                <!-- Kotak Info Status -->
+                <div id="statusBox" class="p-4 rounded-lg text-center mb-4 font-bold text-lg">
+                    <!-- Status lulus/tidak akan muncul di sini -->
+                </div>
+
+                <!-- Detail Data -->
+                <div id="detailData" class="space-y-3 text-sm text-gray-700 mb-6">
+                    <!-- Data dari Excel akan muncul di sini -->
+                </div>
+
+                <!-- Tombol Lihat/Unduh SKL (Dinamis) -->
+                <div id="sklContainer" class="hidden border-t pt-4 text-center">
+                    <a id="btnSkl" href="#" target="_blank"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md mb-2">
+                        <!-- SVG Icon Open Link/Document -->
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span>Lihat & Unduh SKL</span>
+                    </a>
+                    <span class="text-[11px] text-gray-400 block">Klik tombol di atas untuk membuka dokumen SKL Anda.</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Pesan Error / Tidak Ditemukan -->
+        <div id="messageArea" class="mt-4 hidden text-center p-3 rounded-lg text-sm">
+        </div>
+
+    </div>
+
+    <script>
+        // ==========================================
+        // WAJIB DIGANTI: Masukkan URL Web App kamu di bawah ini
+        // ==========================================
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwjWwkGvWDj0qzUUXFKxgfxvsl0zJuS32rQLaPyDlSFY6d6set6vr7nlPqy19Wtw9Yd/exec';
+        // Contoh: const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycb.../exec';
+
+        // Fungsi pembantu untuk memastikan format URL bersih tanpa merusak strukturnya
+        function bersihkanUrl(urlOriginal) {
+            if (!urlOriginal) return '#';
+            let url = urlOriginal.trim();
+            
+            // Jika tidak diawali http/https, tambahkan secara otomatis
+            if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+            return url;
+        }
+
+        async function cekKelulusan() {
+            const nisnInput = document.getElementById('nisn').value.trim();
+            
+            // Elemen UI
+            const btnText = document.getElementById('btnText');
+            const loadingIcon = document.getElementById('loadingIcon');
+            const resultArea = document.getElementById('resultArea');
+            const messageArea = document.getElementById('messageArea');
+            const statusBox = document.getElementById('statusBox');
+            const detailData = document.getElementById('detailData');
+            const btnCari = document.getElementById('btnCari');
+            const sklContainer = document.getElementById('sklContainer');
+
+            // Reset tampilan
+            resultArea.classList.add('hidden');
+            messageArea.classList.add('hidden');
+            sklContainer.classList.add('hidden');
+            detailData.innerHTML = '';
+            
+            if (!nisnInput) {
+                showMessage('Silakan masukkan NISN terlebih dahulu!', 'bg-yellow-100 text-yellow-800 border border-yellow-200');
+                return;
+            }
+
+            // Tampilkan loading
+            btnText.textContent = 'Mencari data...';
+            loadingIcon.classList.remove('hidden');
+            btnCari.disabled = true;
+            btnCari.classList.add('opacity-75', 'cursor-not-allowed');
+
+            try {
+                // Melakukan request ke Google Apps Script
+                const response = await fetch(`${SCRIPT_URL}?nisn=${nisnInput}`);
+                
+                // KITA AMBIL SEBAGAI TEKS DULU UNTUK MENGECEK APAKAH GOOGLE MENGIRIM HTML
+                const textResponse = await response.text();
+                
+                let result;
+                try {
+                    // Coba ubah teks tersebut menjadi JSON
+                    result = JSON.parse(textResponse);
+                } catch (parseError) {
+                    console.error("Respons dari Google bukan JSON, melainkan:", textResponse);
+                    
+                    let penyebab = "Tidak diketahui (Kemungkinan URL salah atau kode belum tersimpan).";
+                    if (textResponse.includes("Sign in") || textResponse.includes("login")) {
+                        penyebab = "Google meminta Login! Akses di Apps Script belum diset ke 'Siapa Saja'.";
+                    } else if (textResponse.includes("Exception") || textResponse.includes("Error") || textResponse.includes("Script function not found")) {
+                        penyebab = "Ada error di dalam kode Google Script (Misal: ID Spreadsheet salah, atau Nama Sheet salah).";
+                    } else if (textResponse.includes("<title>Halaman Tak Ditemukan</title>") || textResponse.includes("Page Not Found")) {
+                         penyebab = "Link URL Web App salah, tidak lengkap, atau sudah dihapus.";
+                    }
+
+                    const errorHtml = `
+                        <strong>Kegagalan Format Data Google!</strong><br><br>
+                        Google tidak mengirimkan data yang benar.<br>
+                        <b class="text-red-700">Deteksi Masalah: ${penyebab}</b><br><br>
+                        <a href="${SCRIPT_URL}?nisn=${nisnInput}" target="_blank" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded mt-3 mb-3 flex items-center justify-center transition-colors">
+                            🔍 KLIK DI SINI UNTUK CEK MASALAHNYA
+                        </a>
+                        <div class="text-left bg-white bg-opacity-50 p-3 rounded text-xs">
+                            <b>SOLUSI TERBAIK:</b><br>
+                            1. Buka Apps Script > Terapkan (Deploy) > <b>Penerapan Baru (New deployment)</b>.<br>
+                            2. Pastikan akses: <b>Siapa saja (Anyone)</b>.<br>
+                            3. Copy URL yang baru dan paste ke kode HTML.
+                        </div>
+                    `;
+                    showMessage(errorHtml, 'bg-red-100 text-red-900 border border-red-300');
+                    return;
+                }
+
+                if (result.status === 'success') {
+                    tampilkanHasil(result.data);
+                } else if (result.status === 'not_found') {
+                    showMessage(result.pesan, 'bg-yellow-100 text-yellow-800 border border-yellow-200');
+                } else {
+                    showMessage('Terjadi kesalahan script: ' + result.pesan, 'bg-red-100 text-red-800 border border-red-200');
+                }
+
+            } catch (error) {
+                console.error('Error detail:', error);
+                const isCORS = error.message.includes('Failed to fetch') || error.name === 'TypeError';
+                
+                const errorHtml = `
+                    <strong>${isCORS ? 'Koneksi Diblokir (CORS Error)' : 'Kegagalan Format Data Google'}</strong><br><br>
+                    Sistem tidak bisa membaca data kelulusan. Hal ini hampir selalu disebabkan oleh pengaturan <b>Izin Akses (Deployment)</b> di Google Script yang belum tepat.<br><br>
+                    <a href="${SCRIPT_URL}?nisn=${nisnInput}" target="_blank" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded mt-3 mb-3 flex items-center justify-center transition-colors">
+                        🔍 KLIK DI SINI UNTUK CEK MASALAHNYA
+                    </a>
+                `;
+                showMessage(errorHtml, 'bg-red-100 text-red-800 border border-red-300');
+            } finally {
+                btnText.textContent = 'Cek Hasil';
+                loadingIcon.classList.add('hidden');
+                btnCari.disabled = false;
+                btnCari.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        }
+
+        function tampilkanHasil(data) {
+            const resultArea = document.getElementById('resultArea');
+            const statusBox = document.getElementById('statusBox');
+            const detailData = document.getElementById('detailData');
+            const sklContainer = document.getElementById('sklContainer');
+            const btnSkl = document.getElementById('btnSkl');
+
+            resultArea.classList.remove('hidden');
+
+            // 1. PENCARIAN STATUS KELULUSAN
+            let isLulus = false;
+            let statusTextRaw = "";
+            
+            const statusKeys = ['KETERANGAN', 'STATUS', 'HASIL', 'KELULUSAN'];
+            for (const key in data) {
+                const upperKey = key.toUpperCase().trim();
+                if (statusKeys.some(sk => upperKey.includes(sk))) {
+                    statusTextRaw = String(data[key]).trim().toUpperCase();
+                    break;
+                }
+            }
+            
+            if (!statusTextRaw) {
+                for (const key in data) {
+                    const val = String(data[key]).trim().toUpperCase();
+                    if (val === 'LULUS' || val === 'TIDAK LULUS') {
+                        statusTextRaw = val;
+                        break;
+                    }
+                }
+            }
+
+            if (statusTextRaw.includes('LULUS') && !statusTextRaw.includes('TIDAK')) {
+                isLulus = true;
+                statusBox.className = 'p-4 rounded-lg text-center mb-4 font-bold text-xl bg-green-100 text-green-800 border border-green-200';
+                statusBox.textContent = 'SELAMAT! ANDA LULUS';
+            } else if (statusTextRaw.includes('TIDAK LULUS')) {
+                isLulus = false;
+                statusBox.className = 'p-4 rounded-lg text-center mb-4 font-bold text-xl bg-red-100 text-red-800 border border-red-200';
+                statusBox.textContent = 'MOHON MAAF, ANDA TIDAK LULUS';
+            } else {
+                statusBox.className = 'hidden'; 
+            }
+
+            // 2. DETEKSI LINK SKL OTOMATIS (MENCARI LINK PERSIS YANG DIMASUKKAN USER)
+            let sklLink = '';
+            
+            for (const key in data) {
+                const keyUpper = key.toUpperCase().trim();
+                const valStr = String(data[key]).trim();
+                
+                if (keyUpper.includes('SKL') || keyUpper.includes('LINK') || keyUpper.includes('DOWNLOAD') || keyUpper.includes('UNDUH')) {
+                    if (valStr.startsWith('http') || valStr.includes('drive.google.com') || valStr.includes('docs.google.com') || valStr.includes('bit.ly') || valStr.includes('gg.gg') || valStr.includes('.')) {
+                        sklLink = valStr;
+                        break;
+                    }
+                }
+            }
+
+            if (!sklLink) {
+                for (const key in data) {
+                    const valStr = String(data[key]).trim();
+                    if (valStr.includes('drive.google.com') || valStr.includes('docs.google.com') || (valStr.startsWith('http') && valStr.includes('.'))) {
+                        sklLink = valStr;
+                        break;
+                    }
+                }
+            }
+
+            // Jika siswa LULUS dan link SKL terdeteksi, aktifkan tombol
+            if (isLulus && sklLink) {
+                // Gunakan link murni dari spreadsheet tanpa modifikasi pemotong ID yang rawan merusak akses
+                btnSkl.href = bersihkanUrl(sklLink);
+                sklContainer.classList.remove('hidden');
+            } else {
+                sklContainer.classList.add('hidden');
+            }
+
+            // 3. TAMPILKAN SEMUA DATA DETAIL (Menyembunyikan baris link SKL asli agar tidak berantakan)
+            let htmlData = '';
+            for (const key in data) {
+                const keyUpper = key.toUpperCase();
+                const valStr = String(data[key]);
+                
+                if (keyUpper.includes('SKL') || (keyUpper.includes('LINK') && valStr.includes('.')) || valStr.includes('drive.google.com') || valStr.includes('docs.google.com')) {
+                    continue;
+                }
+                
+                if (data.hasOwnProperty(key)) {
+                    htmlData += `
+                        <div class="flex justify-between border-b border-gray-100 pb-2 gap-4">
+                            <span class="font-medium text-gray-500 text-left">${key}</span>
+                            <span class="text-gray-800 font-semibold text-right max-w-[60%] break-words">${data[key]}</span>
+                        </div>
+                    `;
+                }
+            }
+            detailData.innerHTML = htmlData;
+        }
+
+        function showMessage(htmlText, classes) {
+            const messageArea = document.getElementById('messageArea');
+            messageArea.innerHTML = htmlText;
+            messageArea.className = `mt-4 text-center p-4 rounded-lg text-sm shadow-sm ${classes}`;
+            messageArea.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
